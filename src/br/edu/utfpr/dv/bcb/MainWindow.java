@@ -2,6 +2,8 @@ package br.edu.utfpr.dv.bcb;
 
 import java.awt.EventQueue;
 import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import javax.swing.JFrame;
@@ -15,6 +17,10 @@ import org.jfree.data.time.Month;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 
+import br.gov.bcb.pec.sgs.casosdeuso.ws.comum.WSSerieVO;
+import br.gov.bcb.pec.sgs.casosdeuso.ws.comum.WSValorSerieVO;
+import br.gov.bcb.www3.wssgs.services.FachadaWSSGS.FachadaWSSGSProxy;
+
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 
@@ -24,6 +30,7 @@ import javax.swing.JFormattedTextField;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
+import java.rmi.RemoteException;
 import java.awt.event.ActionEvent;
 
 public class MainWindow {
@@ -74,7 +81,7 @@ public class MainWindow {
 		
 		comboIndice = new JComboBox();
 		comboIndice.setSize(new Dimension(200, comboIndice.getPreferredSize().height));
-		comboIndice.setModel(new DefaultComboBoxModel(new String[] {"IGP-M"}));
+		comboIndice.setModel(new DefaultComboBoxModel(new String[] {"IGP-M", "IPCA"}));
 		panel.add(comboIndice);
 		
 		JLabel lblDataInicial = new JLabel("Data Inicial:");
@@ -118,7 +125,9 @@ public class MainWindow {
 	
 	private long getIndice() {
 		if(this.comboIndice.getSelectedItem().equals("IGP-M")) {
-			return 189;	
+			return 189;
+		} else if(this.comboIndice.getSelectedItem().equals("IPCA")) {
+			return 433;
 		} else {
 			return 0;
 		}
@@ -133,7 +142,27 @@ public class MainWindow {
 	}
 	
 	private void coletarDados() {
+		FachadaWSSGSProxy ws = new FachadaWSSGSProxy();
+		List<ItemBCB> valores = new ArrayList<ItemBCB>();
 		
+		try {
+			WSSerieVO[] ret = ws.getValoresSeriesVO(new long[] {this.getIndice()}, 
+					this.getDataInicial(), this.getDataFinal());
+			
+			for(WSValorSerieVO val : ret[0].getValores()) {
+				Calendar cal = Calendar.getInstance();
+				cal.set(Calendar.DAY_OF_MONTH, val.getDia());
+				cal.set(Calendar.MONTH, val.getMes());
+				cal.set(Calendar.YEAR, val.getAno());
+				
+				valores.add(new ItemBCB(cal.getTime(), val.getValor().doubleValue()));
+			}
+			
+			this.gerarGrafico(ret[0].getNomeAbreviado(), valores);
+		} catch (RemoteException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	private void gerarGrafico(String titulo, List<ItemBCB> valores) {
